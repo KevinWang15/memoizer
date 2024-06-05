@@ -1,6 +1,6 @@
 module github.com/KevinWang15/memoizer
 
-go 1.22.1
+go 1.20
 
 require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
