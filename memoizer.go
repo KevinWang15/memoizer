@@ -38,7 +38,7 @@ func NewMemoizerWithCacheExpiration[T any](expiration time.Duration) *Memoizer[T
 // Memoize checks the cache for a stored result for the given key. If not found, it executes the function,
 // caches its result, and returns it. This method ensures that concurrent calls with the same key
 // do not result in multiple executions of the function.
-func (m *Memoizer[T]) Memoize(key string, fn func() (T, error)) (T, error) {
+func (m *Memoizer[T]) Memoize(key string, fn func() (T, error), options ...Option) (T, error) {
 	// Attempt to retrieve the cached value.
 	value, ok := m.cache.Get(key)
 	if ok {
@@ -64,7 +64,14 @@ func (m *Memoizer[T]) Memoize(key string, fn func() (T, error)) (T, error) {
 	result, err, _ := m.singleFlightGroup.Do(key, func() (interface{}, error) {
 		res, err := fn()
 		if err == nil {
-			m.cache.Set(key, res, cache.DefaultExpiration) // Cache the result if there's no error.
+			// Cache the result if there's no error.
+			expiration := cache.DefaultExpiration
+			for _, option := range options {
+				if opt, ok := option.(*ExpirationOption); ok {
+					expiration = opt.Callback(res)
+				}
+			}
+			m.cache.Set(key, res, expiration)
 		}
 		return res, err
 	})

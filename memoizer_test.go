@@ -183,3 +183,73 @@ func testNoMemoizationOnPanic(t *testing.T) {
 	assert.Equal(t, 42, result)
 	assert.Equal(t, 3, callCount, "Cached value should be used")
 }
+
+func TestMemoizerWithCustomExpiration(t *testing.T) {
+	memoizer := NewMemoizer[int]()
+	key := "custom_expiration_key"
+	callCount := 0
+
+	customExpirationOption := WithExpiration(func(result interface{}) time.Duration {
+		// Set expiration to 100ms if result is even, 200ms if odd
+		if result.(int)%2 == 0 {
+			return 100 * time.Millisecond
+		}
+		return 200 * time.Millisecond
+	})
+
+	// First call - should set cache with custom expiration
+	result1, err := memoizer.Memoize(key, func() (int, error) {
+		callCount++
+		return 42, nil
+	}, customExpirationOption)
+
+	require.NoError(t, err)
+	assert.Equal(t, 42, result1)
+	assert.Equal(t, 1, callCount)
+
+	// Second call - should use cached value
+	result2, err := memoizer.Memoize(key, func() (int, error) {
+		callCount++
+		return 0, errors.New("this should not be called")
+	}, customExpirationOption)
+
+	require.NoError(t, err)
+	assert.Equal(t, 42, result2)
+	assert.Equal(t, 1, callCount, "Cached value should be used")
+
+	// Wait for 150ms (more than the 100ms expiration for even numbers)
+	time.Sleep(150 * time.Millisecond)
+
+	// Third call - cache should have expired, function should be called again
+	result3, err := memoizer.Memoize(key, func() (int, error) {
+		callCount++
+		return 43, nil
+	}, customExpirationOption)
+
+	require.NoError(t, err)
+	assert.Equal(t, 43, result3)
+	assert.Equal(t, 2, callCount, "Function should be called again after expiration")
+
+	// Fourth call - should use cached value (odd number, 200ms expiration)
+	result4, err := memoizer.Memoize(key, func() (int, error) {
+		callCount++
+		return 0, errors.New("this should not be called")
+	}, customExpirationOption)
+
+	require.NoError(t, err)
+	assert.Equal(t, 43, result4)
+	assert.Equal(t, 2, callCount, "Cached value should be used")
+
+	// Wait for 250ms (more than the 200ms expiration for odd numbers)
+	time.Sleep(250 * time.Millisecond)
+
+	// Fifth call - cache should have expired, function should be called again
+	result5, err := memoizer.Memoize(key, func() (int, error) {
+		callCount++
+		return 44, nil
+	}, customExpirationOption)
+
+	require.NoError(t, err)
+	assert.Equal(t, 44, result5)
+	assert.Equal(t, 3, callCount, "Function should be called again after expiration")
+}
