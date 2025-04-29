@@ -35,6 +35,19 @@ func NewMemoizerWithCacheExpiration[T any](expiration time.Duration) *Memoizer[T
 	}
 }
 
+type Options struct {
+	Expiration    time.Duration
+	CleanInterval time.Duration
+}
+
+// NewMemoizerWithOptions creates and returns a new instance of a Memoizer, with a specified cache expiration time and clean interval.
+func NewMemoizerWithOptions[T any](opt Options) *Memoizer[T] {
+	return &Memoizer[T]{
+		singleFlightGroup: singleflight.Group{},
+		cache:             cache.New(opt.Expiration, opt.CleanInterval), // Initializes the cache with the specified expiration.
+	}
+}
+
 // Memoize checks the cache for a stored result for the given key. If not found, it executes the function,
 // caches its result, and returns it. This method ensures that concurrent calls with the same key
 // do not result in multiple executions of the function.
