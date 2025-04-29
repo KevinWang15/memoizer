@@ -31,7 +31,7 @@ func NewMemoizer[T any]() *Memoizer[T] {
 func NewMemoizerWithCacheExpiration[T any](expiration time.Duration) *Memoizer[T] {
 	return &Memoizer[T]{
 		singleFlightGroup: singleflight.Group{},
-		cache:             cache.New(expiration, 0), // Initializes the cache with the specified expiration.
+		cache:             cache.New(expiration, 2*expiration), // Initializes the cache with the specified expiration.
 	}
 }
 
